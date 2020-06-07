@@ -1,0 +1,28 @@
+image: python:3.8-slim-buster
+
+stages:
+  - lint
+  - publish
+
+python-lint:
+  stage: lint
+  script:
+    - pip install pylint pycodestyle
+    - pip install -r requirements.txt
+    - pycodestyle .
+    - pylint src/*.py
+
+docker-build-tags:
+  image: docker:latest
+  stage: publish
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" .
+    - docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" "$CI_REGISTRY_IMAGE"
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+    - docker push "$CI_REGISTRY_IMAGE"
+  only:
+    - tags
