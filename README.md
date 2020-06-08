@@ -106,8 +106,3 @@ $ pycodestyle .
 $ autopep8 -ir . # Format Python script if needed.
 $ pylint src/*.py
 ```
-
-# TODO
-Gitlab-CI --> pylint/pycodestyle
-Docker build
-Docker push
