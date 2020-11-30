@@ -1,3 +1,10 @@
+![PyPI](https://img.shields.io/pypi/v/kubernetes-configmap-sync)
+![PyPI - License](https://img.shields.io/pypi/l/kubernetes-configmap-sync)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/kubernetes-configmap-sync)
+[![docker-image-version](https://img.shields.io/docker/v/julb/kubernetes-configmap-sync.svg?sort=semver)](https://hub.docker.com/r/julb/kubernetes-configmap-sync)
+[![docker-image-size](https://img.shields.io/docker/image-size/julb/kubernetes-configmap-sync.svg?sort=semver)](https://hub.docker.com/r/julb/kubernetes-configmap-sync)
+[![docker-pulls](https://img.shields.io/docker/pulls/julb/kubernetes-configmap-sync.svg)](https://hub.docker.com/r/julb/kubernetes-configmap-sync)
+
 # julb/kubernetes-configmap-sync
 
 ## Description
@@ -5,12 +12,14 @@
 This utility takes a source directory and creates automatically ConfigMap in the Kubernetes cluster based on the content of that directory.
 
 This can be used when :
-* Configuration files for your application are stored in Git, or anything source directory.
-* A regular routine will launch the container to synchronize the content of the source directory into the Kubernetes cluster.
+
+- Configuration files for your application are stored in Git, or anything source directory.
+- A regular routine will launch the container to synchronize the content of the source directory into the Kubernetes cluster.
 
 ## Use the script
 
 The directory used as source for ConfigMap creation should be organized like this:
+
 ```
 -- ROOT/
 -- -- namespace1/
@@ -28,6 +37,15 @@ The directory used as source for ConfigMap creation should be organized like thi
 -- -- -- [....]
 ```
 
+### Using the python module
+
+```
+$ pip install kubernetes-configmap-sync
+$ python -m kubernetes-configmap-sync <directory>
+```
+
+### Using the container
+
 To execute the container, you should have a ~/.kube/config with the context pointing to the cluster.
 The user defined in the context should have the appropriate rights in th cluster to manage configmaps.
 
@@ -35,10 +53,9 @@ The user defined in the context should have the appropriate rights in th cluster
 $ docker run -ti \
     --user 65534:65534                      \
     -e "CONFIGMAP_DIR=/opt/configmap-dir"   \
-    -v ./examples:/opt/configmap-dir   \
+    -v $(pwd)/examples:/opt/configmap-dir   \
     -e "KUBECONFIG=/.kube/config"           \
     -v ~/.kube/config:/.kube/config         \
-    -e "DEBUG=1"                            \
     julb/kubernetes-configmap-sync:latest
 
 2020-06-08 09:08:06: [INFO] Running outside a pod, using .kubeconfig.
@@ -57,12 +74,14 @@ $ docker run -ti \
 2020-06-08 09:08:07: [INFO] === Delete ConfigMaps no more present in the cluster
 2020-06-08 09:08:07: [INFO] Operation completed.
 ```
+
 ```
 $ kubectl --namespace default get cm
 
 NAME      DATA   AGE
 test-cm   0      43s
 ```
+
 ```
 $ kubectl --namespace default get cm test-cm -ojson
 
@@ -86,11 +105,10 @@ $ kubectl --namespace default get cm test-cm -ojson
 }
 ```
 
-| Environment var | Description | Default Value |
-|-----------------|-------------|---------------|
-| DEBUG         | Enables the logs in DEBUG mode. By default, the logger will output the INFO logs and upper.   | 0                         |
-| CONFIGMAP_DIR | Indicates the location of the directory containing ConfigMap sources.                         | /opt/configmap-dir        |
-| KUBECONFIG    | When run out of kubernetes, it indicates the location of the kube config used to update the cluster. | /.kube/config      |
+| Environment var | Description                                                                                          | Default Value      |
+| --------------- | ---------------------------------------------------------------------------------------------------- | ------------------ |
+| CONFIGMAP_DIR   | Indicates the location of the directory containing ConfigMap sources.                                | /opt/configmap-dir |
+| KUBECONFIG      | When run out of kubernetes, it indicates the location of the kube config used to update the cluster. | /.kube/config      |
 
 When this container is run in Kubernetes with a mounted service account, the script will use that user account automatically.
 In that case, the KUBECONFIG parameter will have no effect.
