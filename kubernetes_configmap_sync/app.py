@@ -1,7 +1,3 @@
-#!/usr/bin/python3
-"""
-Provides a script to synchronize ConfigMaps from a directory to a Kubernetes cluster.
-"""
 import base64
 import logging
 import os
@@ -10,13 +6,11 @@ from os import path
 import kubernetes
 
 # Globals declaration
-CONTEXT = {}
 LOGGER = None
 
 
-def init():
-    """ Initializes the script: logger, context variables, ... """
-    global CONTEXT  # pylint: disable=global-statement
+def _init():
+    # Init logger.
     global LOGGER  # pylint: disable=global-statement
 
     if LOGGER is None:
@@ -27,18 +21,6 @@ def init():
         LOGGER.addHandler(logger_handler)
         LOGGER.setLevel(logging.DEBUG if os.environ.get("DEBUG") is not None else logging.INFO)
 
-    # Files found.
-    if len(sys.argv) != 2:
-        LOGGER.error("ConfigMap directory must be defined")
-        print_help()
-        sys.exit(1)
-
-    # Config directory.
-    CONTEXT['configmap_directory'] = sys.argv[1]
-
-    # Trace debug.
-    debug()
-
     # Kube configuration
     if path.exists('/var/run/secrets/kubernetes.io'):
         LOGGER.info('Running within a pod.')
@@ -48,36 +30,21 @@ def init():
         kubernetes.config.load_kube_config()
 
 
-def print_help():
-    """ Prints the help to use the script. """
-    LOGGER.info('The script should be run with the following parameters:')
-    LOGGER.info('python3 entrypoint.py <configmap_directory>')
-    LOGGER.info('- configmap_directory: the root directory where config map data are stored.')
-
-
-def debug():
-    """ Prints a debug trace the help to debug the script. """
-    LOGGER.debug("CONTEXT['configmap_directory'] = %s", (CONTEXT['configmap_directory'] if CONTEXT['configmap_directory'] is not None else 'None'))
-
-
-def extract_configmaps_from_directory():
+def _extract_configmaps_from_directory(configmap_directory):
     """ Extracts the ConfigMap to synchronize from the given directory. """
-
-    # Check if directory exists.
-    if not os.path.isdir(CONTEXT['configmap_directory']):
-        LOGGER.error('The specified ConfigMap directory is not a directory.')
-        sys.exit(1)
-
-    # Trace base directory.
-    LOGGER.info('= ConfigMap directory is: <%s>', CONTEXT['configmap_directory'])
 
     # Proceed to configmap extraction.
     LOGGER.info('= Proceed to ConfigMap extraction.')
 
+    # Check inputs.
+    if not os.path.isdir(configmap_directory):
+        LOGGER.error('The specified ConfigMap directory is not a directory.')
+        sys.exit(1)
+
     # Listing the namespaces.
     configmaps_by_namespace = {}
-    for k8s_namespace in os.listdir(CONTEXT['configmap_directory']):
-        k8s_namespace_path = os.path.join(CONTEXT['configmap_directory'], k8s_namespace)
+    for k8s_namespace in os.listdir(configmap_directory):
+        k8s_namespace_path = os.path.join(configmap_directory, k8s_namespace)
         if os.path.isdir(k8s_namespace_path):
             # We are in namespace folder.
             LOGGER.info('== Namespace: <%s>', k8s_namespace)
@@ -89,7 +56,7 @@ def extract_configmaps_from_directory():
             for configmap_name in os.listdir(k8s_namespace_path):
                 configmap_name_path = os.path.join(k8s_namespace_path, configmap_name)
                 if os.path.isdir(configmap_name_path):
-                    configmap_data = extract_configmap_data_from_directory(configmap_name, configmap_name_path)
+                    configmap_data = _extract_configmap_data_from_directory(configmap_name, configmap_name_path)
                     configmaps_by_namespace[k8s_namespace][configmap_name] = configmap_data
 
     # Proceed to configmap extraction.
@@ -99,7 +66,7 @@ def extract_configmaps_from_directory():
     return configmaps_by_namespace
 
 
-def extract_configmap_data_from_directory(configmap_name, configmap_name_path):
+def _extract_configmap_data_from_directory(configmap_name, configmap_name_path):
     """ Extracts the ConfigMap data from the given directory. """
 
     LOGGER.info('== > ConfigMap: <%s>', configmap_name)
@@ -121,7 +88,7 @@ def extract_configmap_data_from_directory(configmap_name, configmap_name_path):
     return configmap
 
 
-def synchronize_configmaps_in_cluster(configmaps_by_namespace):
+def _synchronize_configmaps_in_cluster(configmaps_by_namespace):
     """ Update the K8S cluster and synchronize the ConfigMaps within the cluster. """
 
     # Proceed to configmap synchronization in cluster.
@@ -151,7 +118,7 @@ def synchronize_configmaps_in_cluster(configmaps_by_namespace):
                     name=configmap_name,
                     namespace=k8s_namespace,
                     labels={
-                        'app.kubernetes.io/managed-by': 'io.julb.kubernetes-configmap-sync'
+                        'app.kubernetes.io/managed-by': 'me.julb.kubernetes-configmap-sync'
                     }
                 ),
                 data=configmap['data'],
@@ -168,19 +135,21 @@ def synchronize_configmaps_in_cluster(configmaps_by_namespace):
         # Delete the configmaps no more present.
         LOGGER.info('=== Delete ConfigMaps no more present in the cluster')
         search_result = core_v1.list_namespaced_config_map(
-            namespace=k8s_namespace, label_selector='app.kubernetes.io/managed-by=io.julb.kubernetes-configmap-sync')
+            namespace=k8s_namespace, label_selector='app.kubernetes.io/managed-by=me.julb.kubernetes-configmap-sync')
         for i in search_result.items:
             if i.metadata.name not in configmaps_by_name:
                 LOGGER.info('==== Delete ConfigMap: %s.', i.metadata.name)
                 core_v1.delete_namespaced_config_map(name=i.metadata.name, namespace=k8s_namespace)
 
 
-if __name__ == '__main__':
-    init()
+def execute_configmap_sync(configmap_directory):
+    """ Public method executing the synchronization. """
+    # Initialize class.
+    _init()
 
     LOGGER.info('Operation started.')
 
     # Synchronize in cluster.
-    synchronize_configmaps_in_cluster(extract_configmaps_from_directory())
+    _synchronize_configmaps_in_cluster(_extract_configmaps_from_directory(configmap_directory))
 
     LOGGER.info('Operation completed.')

@@ -102,7 +102,6 @@ This project is totally open source and contributors are welcome.
 When you submit a PR, please ensure that the python code is well formatted and linted.
 
 ```
-$ pycodestyle .
-$ autopep8 -ir . # Format Python script if needed.
-$ pylint src/*.py
+$ make format
+$ make lint
 ```

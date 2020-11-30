@@ -1,0 +1,85 @@
+on:
+  push:
+    tags:
+      - '*'
+
+name: Release
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+  
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m venv venv
+          . venv/bin/activate
+          pip install -r requirements.txt
+  
+      - name: Package project
+        run: |
+          python setup.py sdist
+
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PIPY_TOKEN }}
+  
+  docker:
+    needs: pypi
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+  
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m venv venv
+          . venv/bin/activate
+          pip install -r requirements.txt
+      
+      - name: Get vars
+        id: vars
+        run: echo ::set-output name=package_version::$(make version.get)
+  
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          build-args: |
+            PACKAGE_VERSION=${{ steps.vars.outputs.package_version }}
+          tags: |
+            julb/kubernetes-configmap-sync:${{ steps.vars.outputs.package_version }}
+            julb/kubernetes-configmap-sync:latest
+
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
