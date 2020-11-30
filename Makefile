@@ -13,6 +13,9 @@ help:
 #install.dependencies: @ install dependencies.
 install.dependencies:
 	@echo "> Installing dependencies."; \
+	python -m pip install --upgrade pip; \
+	python -m venv venv; \
+	. venv/bin/activate; \
 	venv/bin/pip3 install -r $(CURRENT_DIR)/requirements.txt
 
 #format: @ Format code
