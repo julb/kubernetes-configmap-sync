@@ -1,1 +1,5 @@
-kubernetes==12.0.0
+-e .
+autopep8
+pycodestyle
+pylint
+bumpversion

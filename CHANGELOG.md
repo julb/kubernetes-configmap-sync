@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2020-11-30
+
+### Changed
+
+- Move from Gitlab to Github.
+- Publish python module to PyPi.
+
 ## [1.0.1] - 2020-10-27
 
 ### Added
