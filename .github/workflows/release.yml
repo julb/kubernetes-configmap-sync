@@ -13,12 +13,6 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: '3.8'
-  
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
 
     - uses: actions/checkout@v2
     
@@ -66,8 +60,8 @@ jobs:
         enhancementLabel: "🚀 New features"
         enhancementLabels: "type: enhancement"
         bugsLabel: "🐞 Bug fixes"
-        bugsLabels: "type: bug,type: regression"
-        deprecateLabel: "👋 Deprecated"
+        bugLabels: "type: bug,type: regression"
+        deprecatedLabel: "👋 Deprecated"
         deprecatedLabels: "type: deprecation"
 
     - uses: EndBug/add-and-commit@v7
@@ -87,6 +81,12 @@ jobs:
       uses: pypa/gh-action-pypi-publish@master
       with:
         password: ${{ secrets.PIPY_TOKEN }}
+  
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
 
     - name: Login to DockerHub
       uses: docker/login-action@v1 
