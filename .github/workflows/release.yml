@@ -81,6 +81,11 @@ jobs:
       uses: pypa/gh-action-pypi-publish@master
       with:
         password: ${{ secrets.PIPY_TOKEN }}
+        
+    - name: Sleep for 60 seconds for Pypi to refresh
+      uses: jakejarvis/wait-action@master
+      with:
+        time: '60s'
   
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
