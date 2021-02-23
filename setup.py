@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="kubernetes-configmap-sync",
-    version="1.1.1",
+    version="1.1.2",
     description="This utility takes a source directory and creates automatically ConfigMap in the Kubernetes cluster \
                 based on the content of that directory.",
     long_description=README,
