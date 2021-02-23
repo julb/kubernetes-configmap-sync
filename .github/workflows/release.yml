@@ -1,77 +1,199 @@
 on:
   push:
-    tags:
-      - '*'
+    branches:
+      - 'releases/**'
 
 name: Release
 
 jobs:
-  pypi:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v1
-        with:
-          python-version: 3.8
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.8'
   
-      - name: Install dependencies
-        run: make install.dependencies
-  
-      - name: Package project
-        run: |
-          python setup.py sdist
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
 
-      - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          password: ${{ secrets.PIPY_TOKEN }}
-  
-  docker:
-    needs: pypi
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
 
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v1
-        with:
-          python-version: 3.8
-  
-      - name: Install dependencies
-        run: make install.dependencies
-      
-      - name: Get vars
-        id: vars
-        run: echo ::set-output name=package_version::$(make version.get)
-  
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+    - uses: actions/checkout@v2
+    
+    - name: Read current version
+      id: current_vars
+      run: |
+        echo ::set-output name=version::$(make version.get-released)
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+    - name: Compute release vars
+      id: release_vars
+      uses: julb/action-prepare-release@v1
+      with:
+        version: ${{ steps.current_vars.outputs.version }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v1 
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Linting
+      run: make lint
 
-      - name: Build and push
-        id: docker_build
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          build-args: |
-            PACKAGE_VERSION=${{ steps.vars.outputs.package_version }}
-          tags: |
-            julb/kubernetes-configmap-sync:${{ steps.vars.outputs.package_version }}
-            julb/kubernetes-configmap-sync:latest
+    - name: Testing
+      run: make test
 
-      - name: Image digest
-        run: echo ${{ steps.docker_build.outputs.digest }}
+    - name: Updating file versions
+      run: make version.set VERSION=${{ steps.release_vars.outputs.version }}
+
+    - name: Update CHANGELOG.md
+      uses: heinrichreimer/github-changelog-generator-action@v2.2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        futureRelease: ${{ steps.release_vars.outputs.version }}
+        addSections: '{"documentation":{"prefix":"📘 Documentation","labels":["type: documentation"]},"tests":{"prefix":"🏹 Dependency Upgrades","labels":["dependency-upgrade"]}}'
+        issues: true
+        issuesWoLabels: true
+        pullRequests: true
+        prWoLabels: true
+        author: true
+        filterByMilestone: true
+        compareLink: true
+        stripGeneratorNotice: true
+        unreleased: true
+        verbose: true
+        excludeTagsRegex: ^(latest|v[0-9]+)$
+        breakingLabel: "🔨 Breaking changes"
+        breakingLabels: "type: breaking-change"
+        enhancementLabel: "🚀 New features"
+        enhancementLabels: "type: enhancement"
+        bugsLabel: "🐞 Bug fixes"
+        bugsLabels: "type: bug,type: regression"
+        deprecateLabel: "👋 Deprecated"
+        deprecatedLabels: "type: deprecation"
+
+    - uses: EndBug/add-and-commit@v7
+      with:
+        author_name: github-actions
+        author_email: 41898282+github-actions[bot]@users.noreply.github.com
+        message: "[ci] release version ${{ steps.release_vars.outputs.version }}"
+        push: "origin ${{ steps.release_vars.outputs.version }}"
+        tag: "${{ steps.release_vars.outputs.version }}"
+
+    - name: Publish artifacts
+      run: |
+        make build
+        make push
+    
+    - name: Publish also distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.PIPY_TOKEN }}
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1 
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Publish also distribution to DockerHub
+      id: docker_build
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        build-args: |
+          PACKAGE_VERSION=${{ steps.release_vars.outputs.version }}
+        tags: |
+          ${{ github.repository }}:${{ steps.release_vars.outputs.version }}
+          ${{ github.repository }}:latest
+
+    - name: Show digest
+      run: |
+        echo "Pushed successfully to DockerHub: ${{ steps.docker_build.outputs.digest }}"
+
+    - name: Build Changelog
+      id: github_release
+      uses: mikepenz/release-changelog-builder-action@main
+      with:
+        configuration: ".github/config/changelog.json"
+        toTag: "${{ steps.release_vars.outputs.version }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.release_vars.outputs.version }}
+        release_name: Release ${{ steps.release_vars.outputs.version }}
+        body: ${{steps.github_release.outputs.changelog}}
+
+    - name: Create major tag
+      uses: julb/action-manage-tag@v1
+      with:
+        name: v${{ steps.release_vars.outputs.major_version }}
+        state: present
+        from: ${{ steps.release_vars.outputs.version }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create latest tag
+      uses: julb/action-manage-tag@v1
+      with:
+        name: latest
+        state: present
+        from: ${{ steps.release_vars.outputs.version }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Merge back changes to target branch
+      uses: devmasx/merge-branch@v1.3.1
+      with:
+        type: now
+        target_branch: ${{ steps.release_vars.outputs.target_branch }}
+        from_branch: ${{ steps.release_vars.outputs.version }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: "Switch back to target branch"
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ steps.release_vars.outputs.target_branch }}
+    
+    - name: Bumping version
+      id: next_vars
+      run: |
+        make version.bump
+        echo ::set-output name=next_version::$(make version.get)
+        echo ::set-output name=next_released_version::$(make version.get-released)
+
+    - uses: EndBug/add-and-commit@v7
+      with:
+        author_name: github-actions
+        author_email: 41898282+github-actions[bot]@users.noreply.github.com
+        message: "[ci] bump version ${{ steps.release_vars.outputs.version }} -> ${{ steps.next_vars.outputs.next_version }}"
+        branch: "${{ steps.release_vars.outputs.target_branch }}"
+
+    - name: "Close old milestone"
+      uses: julb/action-manage-milestone@v1
+      with:
+        title: ${{ steps.release_vars.outputs.version }}
+        state: 'closed'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: "Create new milestone"
+      uses: julb/action-manage-milestone@v1
+      with:
+        title: ${{ steps.next_vars.outputs.next_released_version }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Drop release branch
+      uses: julb/action-manage-branch@v1
+      with:
+        name: ${{ steps.release_vars.outputs.source_branch }}
+        state: absent
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
