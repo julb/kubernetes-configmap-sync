@@ -1,31 +1,28 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [1.1.1](https://github.com/julb/kubernetes-configmap-sync/tree/1.1.1) (2021-02-23)
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+[Full Changelog](https://github.com/julb/kubernetes-configmap-sync/compare/1.1.0...1.1.1)
 
-## [Unreleased]
+## [1.1.0](https://github.com/julb/kubernetes-configmap-sync/tree/1.1.0) (2020-11-30)
 
-## [1.1.0] - 2020-11-30
+[Full Changelog](https://github.com/julb/kubernetes-configmap-sync/compare/1.0.1...1.1.0)
 
-### Changed
+**Closed issues:**
 
-- Move from Gitlab to Github.
-- Publish python module to PyPi.
+- Migrate from Gitlab to Github [\#1](https://github.com/julb/kubernetes-configmap-sync/issues/1)
 
-## [1.0.1] - 2020-10-27
+**Merged pull requests:**
 
-### Added
+- Migrate from Gitlab to Github [\#2](https://github.com/julb/kubernetes-configmap-sync/pull/2) ([julb](https://github.com/julb))
 
-- Add CHANGELOG.
+## [1.0.1](https://github.com/julb/kubernetes-configmap-sync/tree/1.0.1) (2020-10-27)
 
-### Changed
+[Full Changelog](https://github.com/julb/kubernetes-configmap-sync/compare/1.0.0...1.0.1)
 
-- Upgrade version of kubernetes to 12.0.0
+## [1.0.0](https://github.com/julb/kubernetes-configmap-sync/tree/1.0.0) (2020-06-08)
 
-## [1.0.0] - 2020-06-08
+[Full Changelog](https://github.com/julb/kubernetes-configmap-sync/compare/6d2a452792baaef4146780c7c85cdb8a8c748dff...1.0.0)
 
-### Added
 
-- Initial version of the project.
+
